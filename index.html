@@ -1,11 +1,10 @@
 <!DOCTYPE html>
 <!--
   Planejamento do doutorado sanduíche na UNAM (Dhuna).
-  Versão do app: 1.2 (23/11/2026). Versão dos dados salvos (state.v): 5.
+  Versão do app: 1.1 (23/11/2026). Versão dos dados salvos (state.v): 5.
   Histórico de mudanças: registre aqui cada alteração, com data e número da versão.
   1.0 (21/11/2026): versão inicial completa (etapas, Kanban, carteira, exportar e importar Excel).
   1.1 (23/11/2026): carteira integrada ao Supabase (recorrências, lançamentos avulsos, cotações, poupança, estadia e depósitos).
-  1.2 (23/11/2026): nova interface baseada no mockup aprovado, com painel inicial dinâmico e navegação lateral; preservadas as funções e integrações.
 -->
 <html lang="pt-BR">
 <head>
@@ -14,15 +13,15 @@
 <title>Sanduíche na UNAM — planejamento</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=DM+Serif+Display&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Spectral:wght@500;600;700&family=Public+Sans:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
 :root{
   --bg:#F3F1F7; --surface:#FFFFFF; --ink:#261E36; --muted:#6A6279; --line:#DDD7E6;
   --brand:#5B3FA0; --brand-ink:#FFFFFF; --accent:#B97410; --accent-bg:#FBEFD8; --ok:#2E7D6B;
   --hero:#3A2670; --hero-ink:#F5F1FC; --hero-muted:#C9BDE6;
   --c-udesc:#5B3FA0; --c-mex:#B8691A; --c-fin:#2E7D6B; --c-pes:#3F6FB0;
-  --serif:'DM Serif Display',Georgia,'Times New Roman',serif;
-  --sans:'DM Sans',system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;
+  --serif:'Spectral',Georgia,'Times New Roman',serif;
+  --sans:'Public Sans',system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;
   box-sizing:border-box;
   padding-top:env(safe-area-inset-top,0px);
   padding-bottom:env(safe-area-inset-bottom,0px);
@@ -245,41 +244,44 @@ dialog::backdrop{background:rgba(20,12,34,.55)}
 </style>
 </head>
 <body>
-<div class="app-shell">
-  <aside class="side">
-    <div class="brand"><div class="logo">✳</div><div><h1>Sanduíche na UNAM</h1><small>planejamento de viagem</small></div></div>
-    <nav class="nav" id="tabs" role="tablist" aria-label="Navegação principal">
-      <button class="tab" role="tab" data-v="home"><span>⌂</span>Visão geral</button>
-      <button class="tab" role="tab" data-v="etapas"><span>☷</span>Etapas</button>
-      <button class="tab" role="tab" data-v="kanban"><span>▦</span>Kanban</button>
-      <button class="tab" role="tab" data-v="carteira"><span>◈</span>Carteira</button>
-      <button class="tab" role="tab" data-v="links"><span>↗</span>Links úteis</button>
-    </nav>
-    <div class="side-note"><strong>✦ Espaço compartilhado</strong>Um lugar para organizar, acompanhar e registrar cada passo da jornada até a Cidade do México.</div>
-  </aside>
-  <div class="main-shell">
-    <div class="top">
-      <div class="crumb">Projeto pessoal&nbsp; / &nbsp;<strong>UNAM · Cidade do México</strong></div>
-      <div class="profile"><div class="avatar">D</div><span>Dhuna</span><button class="btn ghost" id="btnLogout" type="button" hidden>Sair</button></div>
-    </div>
-    <header class="hero app-hero">
-      <div class="hero-copy"><div class="eyebrow">Doutorado sanduíche · 2027</div><h1>Uma jornada em construção.</h1><p id="countdown"></p></div>
-      <div class="hero-date"><strong id="departLabel">01 ABR 2027</strong><span>data prevista de partida</span></div>
-    </header>
-    <div class="toolbar" aria-label="Ações do planejamento">
-      <button class="btn primary" id="btnNew">＋ Nova atividade</button>
-      <button class="btn" id="btnDate">Data de partida</button>
-      <button class="btn" id="btnExport">Exportar Excel</button>
-      <button class="btn" id="btnImport">Importar Excel</button>
-      <button class="btn" id="btnTpl">Modelo do Excel</button>
-      <input type="file" id="fileTpl" accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" hidden>
-      <input type="file" id="fileImport" accept=".xlsx,.json,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/json" hidden>
+
+<header class="hero">
+  <div class="wrap">
+    <div class="hero-row">
+      <div>
+        <h1>Sanduíche na UNAM</h1>
+        <p id="countdown"></p>
+      </div>
+      <div class="hero-actions">
+        <button class="btn primary" id="btnNew">Nova atividade</button>
+        <button class="btn" id="btnDate">Data de partida</button>
+        <button class="btn" id="btnExport">Exportar Excel</button>
+        <button class="btn" id="btnImport">Importar Excel</button>
+        <button class="btn" id="btnTpl">Modelo do Excel</button>
+        <button class="btn" id="btnLogout" type="button" hidden>Sair</button>
+        <input type="file" id="fileTpl" accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" hidden>
+        <input type="file" id="fileImport" accept=".xlsx,.json,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/json" hidden>
+      </div>
     </div>
     <div class="meters" id="meters"></div>
-    <nav class="bar-nav" aria-label="Filtros por área"><div class="chips" id="chips"></div></nav>
-    <main><div class="wrap" id="view"></div></main>
   </div>
-</div>
+</header>
+
+<nav class="bar-nav" aria-label="Visões e filtros">
+  <div class="wrap">
+    <div class="tabs" role="tablist" id="tabs">
+      <button class="tab" role="tab" data-v="etapas">Etapas</button>
+      <button class="tab" role="tab" data-v="kanban">Kanban</button>
+      <button class="tab" role="tab" data-v="carteira">Carteira</button>
+      <button class="tab" role="tab" data-v="links">Links úteis</button>
+    </div>
+    <div class="chips" id="chips" aria-label="Filtrar por área"></div>
+  </div>
+</nav>
+
+<main>
+  <div class="wrap" id="view"></div>
+</main>
 
 <dialog id="dlg"></dialog>
 <dialog id="dlgDate">
@@ -292,30 +294,6 @@ dialog::backdrop{background:rgba(20,12,34,.55)}
     </div>
   </div>
 </dialog>
-<style>
-/* Etapa 5 — interface baseada no mockup aprovado; componentes funcionais originais preservados. */
-:root{--bg:#f6f4f8;--surface:#fff;--ink:#282239;--muted:#777188;--line:#e8e2ee;--brand:#6949a5;--brand-ink:#fff;--accent:#b87928;--accent-bg:#fbf1df;--ok:#347563;--hero:#4b3676;--hero-ink:#fff;--hero-muted:#e4dbf2;--shadow:0 10px 30px rgba(50,30,80,.06)}
-body{font-family:var(--sans);background:var(--bg)}
-.app-shell{display:grid;grid-template-columns:250px minmax(0,1fr);min-height:100vh}
-.side{background:#2e2542;color:#f8f5ff;padding:26px 18px;display:flex;flex-direction:column;gap:28px;min-height:100vh;position:sticky;top:0;height:100vh}
-.brand{display:flex;gap:12px;align-items:center}.logo{width:42px;height:42px;border-radius:14px;background:#c8b4ed;color:#302344;display:grid;place-items:center;font-family:serif;font-size:23px;flex:none}.brand h1{font:700 15px var(--sans);margin:0;color:#f8f5ff}.brand small{color:#bdb3d2;font-size:11px}
-.nav{display:grid;gap:7px}.nav .tab{display:block;width:100%;border:0;border-radius:12px;border-bottom:0;background:transparent;color:#d8d0e7;text-align:left;padding:12px 14px;font:500 14px var(--sans);cursor:pointer}.nav .tab span{display:inline-block;width:27px}.nav .tab[aria-selected="true"],.nav .tab:hover{background:#49385f;color:#fff}
-.side-note{margin-top:auto;border:1px solid #65547b;background:#3a2e50;padding:16px;border-radius:16px;color:#d7cfe4;font-size:12px;line-height:1.5}.side-note strong{display:block;color:#fff;margin-bottom:6px}
-.main-shell{min-width:0;width:100%;max-width:1600px;margin:0 auto;padding:26px clamp(18px,3.5vw,48px) 50px}
-.top{display:flex;align-items:center;justify-content:space-between;gap:16px;margin:0 0 22px}.crumb{color:var(--muted);font-size:13px}.profile{display:flex;gap:10px;align-items:center;font-size:13px}.avatar{width:34px;height:34px;border-radius:50%;background:#e3d8f5;display:grid;place-items:center;color:var(--brand);font-weight:700}.profile .btn{padding:5px 10px;font-size:12px}
-.app-hero{border-radius:22px;padding:28px 30px;display:flex;justify-content:space-between;align-items:center;gap:24px;position:relative;overflow:hidden;box-shadow:var(--shadow);background:linear-gradient(120deg,#4b3676,#7d60ac);color:#fff}.app-hero:after{content:"";position:absolute;right:-40px;top:-85px;width:290px;height:290px;border:1px solid #ffffff25;border-radius:50%;box-shadow:0 0 0 35px #ffffff10,0 0 0 70px #ffffff08;pointer-events:none}.app-hero h1{font:400 clamp(27px,3vw,36px)/1.15 var(--serif);margin:8px 0;color:#fff}.app-hero p{margin:0;color:#e4dbf2;max-width:60ch}.app-hero .eyebrow{text-transform:uppercase;letter-spacing:1.4px;font-size:10px;font-weight:700;opacity:.75}.hero-date{z-index:1;text-align:right;flex:none}.hero-date strong{font-size:25px;display:block}.hero-date span{font-size:12px;color:#e2d6f1}
-.toolbar{display:flex;gap:8px;flex-wrap:wrap;margin:16px 0 14px}.toolbar .btn{font-size:12px;padding:8px 11px;border-radius:10px}.toolbar .btn.primary{background:var(--brand);color:#fff;border-color:var(--brand)}
-.meters{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:10px;margin:0 0 16px}.meter{background:#fff;border:1px solid var(--line);border-radius:14px;padding:12px 14px;box-shadow:var(--shadow);min-width:0}.meter .top{margin:0 0 8px;display:flex;align-items:center;justify-content:space-between;gap:8px;color:var(--muted);font-size:11px}.meter .top b{color:var(--ink);font-size:12px}.meter .top .nm{display:inline-flex;align-items:center;gap:5px}.meter .code{font-size:9px;padding:2px 4px;color:var(--brand);border-color:#d8cdea}.meter .bar{height:6px;background:#eeeaf3;border-radius:9px;overflow:hidden}.meter .bar>i{background:var(--brand);border-radius:9px}.meter[data-cat="udesc"] .bar>i{background:#6949a5}.meter[data-cat="mex"] .bar>i{background:#b8691a}.meter[data-cat="fin"] .bar>i{background:#347563}.meter[data-cat="pes"] .bar>i{background:#3f6fb0}.mod-add{display:none}
-.bar-nav{position:static;background:transparent;border:0;margin:0 0 12px}.bar-nav .chips{display:flex;gap:7px;flex-wrap:wrap}.chip{border-radius:999px;background:#fff;padding:5px 11px;font-size:12px}.chip[aria-pressed="true"]{border-color:var(--brand);background:#eee8f8;color:var(--brand)}
-.main-shell main{padding:0 0 30px}.main-shell .wrap{max-width:none}.note{font-size:12px}.tile,.card2,.tbl-wrap,.chart-wrap,.list,.lk{border-radius:14px;box-shadow:var(--shadow)}.tile{background:#fff}.phase-head h2{font-family:var(--serif)}.phase-head .btn,.btn{border-radius:10px}.col{border-radius:14px}.card{border-radius:12px}.lk{background:#fff}
-/* Painel inicial */
-.home-grid4{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px;margin:18px 0}.home-metric,.home-panel{background:#fff;border:1px solid var(--line);border-radius:18px;padding:17px;box-shadow:var(--shadow)}.home-metric .label{font-size:12px;color:var(--muted)}.home-metric strong{font:400 25px var(--serif);display:block;margin:8px 0 3px}.home-metric small{font-size:11px;color:var(--muted)}.home-metric .metric-icon{float:right;width:32px;height:32px;border-radius:11px;background:#eee8f8;display:grid;place-items:center}.home-layout2{display:grid;grid-template-columns:1.25fr .75fr;gap:16px}.home-panel-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}.home-panel h3{font:600 15px var(--sans);margin:0}.home-panel-head small{font-size:11px;color:var(--muted)}.home-task{display:flex;align-items:flex-start;gap:12px;padding:12px 0;border-bottom:1px solid var(--line)}.home-task:last-child{border:0}.home-task .task-check{width:18px;height:18px;border:1.5px solid #c8bdd8;border-radius:6px;flex:none;margin-top:2px}.home-task h4{font-size:12px;margin:0 0 4px}.home-task p{font-size:11px;color:var(--muted);margin:0;line-height:1.45}.home-task .task-meta{margin-left:auto;text-align:right;display:flex;flex-direction:column;gap:5px;align-items:flex-end;white-space:nowrap}.home-tag{font-size:10px;padding:4px 7px;border-radius:8px;background:#eee8f8;color:#6949a5}.home-tag.gold{background:#fbf1df;color:#93631b}.home-tag.mint{background:#e5f3ee;color:#347563}.home-milestones{display:grid;gap:12px}.home-milestone{display:flex;gap:10px;align-items:center}.home-milestone .milestone-icon{width:34px;height:34px;border-radius:11px;background:#f1e9f8;display:grid;place-items:center;flex:none}.home-milestone strong{font-size:11px;display:block}.home-milestone small{font-size:10px;color:var(--muted)}.home-progress{height:6px;background:#eeeaf3;border-radius:8px;overflow:hidden;margin-top:6px;min-width:150px}.home-progress i{height:100%;display:block;background:var(--brand);border-radius:8px}
-@media(max-width:1050px){.app-shell{grid-template-columns:210px minmax(0,1fr)}.meters{grid-template-columns:repeat(3,minmax(0,1fr))}.home-grid4{grid-template-columns:repeat(2,minmax(0,1fr))}.home-layout2{grid-template-columns:1fr}}
-@media(max-width:760px){.app-shell{grid-template-columns:1fr}.side{position:relative;height:auto;min-height:0;padding:14px 16px;gap:12px}.nav{grid-template-columns:repeat(5,minmax(0,1fr));gap:4px}.nav .tab{text-align:center;padding:9px 4px;font-size:11px}.nav .tab span{display:block;width:auto;font-size:17px}.side-note{display:none}.main-shell{padding:16px 14px 32px}.top{margin-bottom:14px}.app-hero{padding:22px}.hero-date{display:none}.meters{grid-template-columns:repeat(2,minmax(0,1fr))}.home-grid4{gap:9px}.home-metric{padding:13px}.home-metric strong{font-size:21px}}
-@media(max-width:420px){.nav .tab{font-size:10px}.toolbar .btn{font-size:11px;padding:7px 8px}.meters{gap:7px}.meter{padding:10px}.meter .top{font-size:10px}.home-grid4{grid-template-columns:repeat(2,minmax(0,1fr))}}
-@media(prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#17121f;--surface:#211a2d;--ink:#ede8f5;--muted:#a79fb8;--line:#372e47;--brand:#a68be6;--brand-ink:#1b1228;--accent:#f0b35a;--accent-bg:#3a2d17;--ok:#5cc2a8;--hero:#251c3a;--hero-ink:#f2edfa;--hero-muted:#a99acb;--shadow:none}.meter,.home-metric,.home-panel,.chip,.lk{background:var(--surface)}}
-:root[data-theme="dark"]{--shadow:none}.theme-dark .meter,.theme-dark .home-metric,.theme-dark .home-panel{background:var(--surface)}
-</style>
 <style>
 #authGate{position:fixed;inset:0;z-index:9999;background:var(--bg);display:flex;align-items:center;justify-content:center;padding:20px}
 #authGate[hidden]{display:none!important}.auth-card{width:min(100%,430px);background:var(--surface);border:1px solid var(--line);border-radius:18px;padding:28px;box-shadow:0 12px 40px #0002}.auth-card h2{font-family:var(--serif);margin:0 0 8px}.auth-card p{color:var(--muted)}.auth-card label{display:block;margin:14px 0 5px}.auth-card input{width:100%;padding:11px;border:1px solid var(--line);border-radius:9px;background:var(--bg)}.auth-card button{margin-top:16px;width:100%}#authMessage{min-height:1.5em;color:var(--muted);font-size:13px}#btnLogout{white-space:nowrap}
@@ -452,7 +430,7 @@ function seed(){
 }
 
 var state=load();save();
-var ui={view:'home',cat:'all',open:{}};
+var ui={view:'etapas',cat:'all',open:{}};
 
 function pad2(k){return k<10?'0'+k:String(k)}
 function walletDefault(){
@@ -777,7 +755,6 @@ function renderHeader(){
     p.append(txt);
     if(days!==0){p.append(h('span',{class:'count'},Math.abs(days)+(Math.abs(days)===1?' dia':' dias')));p.append(days>0?' para a partida, em '+fmt(state.depart,true)+'.':'.');}
   }else p.textContent='Defina a data de partida para ver a contagem regressiva.';
-  var dl=document.getElementById('departLabel');if(dl)dl.textContent=d?d.toLocaleDateString('pt-BR',{day:'2-digit',month:'short',year:'numeric'}).replace('.','').toUpperCase():'Definir data';
   var m=document.getElementById('meters');m.textContent='';
   var all=state.tasks,done=all.filter(function(t){return t.status==='done'}).length;
   m.append(meter('all','Geral',done,all.length));
@@ -800,7 +777,7 @@ function meter(cat,label,d,tot){
 function renderNav(){
   document.querySelectorAll('.tab').forEach(function(b){b.setAttribute('aria-selected',String(b.dataset.v===ui.view))});
   var c=document.getElementById('chips');c.textContent='';
-  c.hidden=ui.view==='carteira'||ui.view==='home';c.append(chip('all','Tudo'));
+  c.hidden=ui.view==='carteira';c.append(chip('all','Tudo'));
   Object.keys(CATS).forEach(function(k){c.append(chip(k,CATS[k]))});
 }
 function chip(k,label){
@@ -1339,46 +1316,11 @@ function editItem(id,kind){
   dlg.append(f);dlg.showModal();f.querySelector('#iName').focus();
 }
 
-/* ---------- visão geral (painel dinâmico; sem dados ilustrativos) ---------- */
-function renderHome(root){
-  var all=state.tasks||[],done=all.filter(function(t){return t.status==='done'}).length;
-  var pending=all.filter(function(t){return t.status!=='done'});
-  var days=null,d=pd(state.depart),now=new Date();now.setHours(0,0,0,0);
-  if(d)days=Math.ceil((d-now)/86400000);
-  var gd=goalData(),tot=totals(),inc=incomeTotals();
-  var next=pending.slice().sort(function(a,b){
-    if(!a.due)return 1;if(!b.due)return -1;return a.due.localeCompare(b.due);
-  }).slice(0,4);
-  var metrics=[
-    ['Atividades',done+' / '+all.length,'concluídas','☷'],
-    ['Dias até a viagem',days===null?'—':(days<0?'+'+Math.abs(days):days),'tempo para se preparar','◷'],
-    ['Meta de poupança',money(gd.needed,'BRL'),'objetivo de economia','◈'],
-    ['Já reservado',money(gd.saved,'BRL'),fx(gd.pct,0)+'% da meta','✦']
-  ];
-  root.append(h('div',{class:'home-grid4'},metrics.map(function(m){return h('div',{class:'home-metric'},h('span',{class:'metric-icon'},m[3]),h('div',{class:'label'},m[0]),h('strong',{},m[1]),h('small',{},m[2]))})));
-  var tasksBox=h('div',{class:'home-panel'},h('div',{class:'home-panel-head'},h('h3',{},'Próximos passos'),h('button',{class:'btn ghost',type:'button',onclick:function(){ui.view='etapas';render()}},'Ver todas →')));
-  if(!next.length)tasksBox.append(h('p',{class:'note'},'Todas as atividades estão concluídas.'));
-  next.forEach(function(t){
-    var tag=t.status==='doing'?['Em andamento','gold']:t.status==='done'?['Concluído','mint']:['A fazer',''];
-    tasksBox.append(h('div',{class:'home-task'},h('span',{class:'task-check'}),h('div',{},h('h4',{},t.code+' · '+t.title),h('p',{},CATS[t.cat]+' · '+phaseName(t.phase))),h('div',{class:'task-meta'},h('span',{class:'home-tag '+tag[1]},tag[0]),t.due?h('small',{},fmt(t.due)):null)));
-  });
-  var progress=h('div',{class:'home-panel'},h('div',{class:'home-panel-head'},h('h3',{},'Rumo à partida'),h('small',{},'andamento por área')));
-  var icons={udesc:'🎓',mex:'✈️',fin:'◈',pes:'♡'};
-  Object.keys(CATS).forEach(function(cat){
-    var a=all.filter(function(t){return t.cat===cat}),nDone=a.filter(function(t){return t.status==='done'}).length,pct=a.length?Math.round(nDone/a.length*100):0;
-    progress.append(h('div',{class:'home-milestone'},h('div',{class:'milestone-icon'},icons[cat]),h('div',{style:'flex:1;min-width:0'},h('strong',{},CATS[cat]),h('small',{},nDone+' de '+a.length+' atividades concluídas'),h('div',{class:'home-progress'},h('i',{style:'width:'+pct+'%'})))));
-  });
-  root.append(h('div',{class:'home-layout2'},tasksBox,progress));
-  var finNote=h('p',{class:'note',style:'margin-top:14px'},'Resumo financeiro calculado com os dados sincronizados do Supabase.');
-  root.append(finNote);
-}
-
 /* ---------- render ---------- */
 function render(){
   renderHeader();renderNav();
   var root=document.getElementById('view');root.textContent='';
-  if(ui.view==='home')renderHome(root);
-  else if(ui.view==='etapas')renderEtapas(root);
+  if(ui.view==='etapas')renderEtapas(root);
   else if(ui.view==='kanban')renderKanban(root);
   else if(ui.view==='carteira')renderCarteira(root);
   else renderLinks(root);
@@ -1638,7 +1580,6 @@ function fillTemplate(sheets){
 }
 function exportXlsx(){
   var dlP=getDownloads();
-  if(!dlP){toast('Download indisponível aqui. Abra o app pelo claude.ai.');return}
   var sheets;
   try{sheets=buildSheets()}catch(e){toast('Não foi possível montar o arquivo Excel.');return}
   var usedPlain=false,make;
@@ -1649,13 +1590,22 @@ function exportXlsx(){
     });
   }else if(xlsxReady()){usedPlain=true;make=Promise.resolve(plainBlob(sheets))}
   else{toast('A biblioteca de Excel não carregou. Recarregue a página.');return}
-  Promise.all([make,Promise.resolve(dlP)]).then(function(r){
-    var blob=r[0],dl=r[1];
-    if(!dl){toast('Download indisponível aqui. Abra o app pelo claude.ai.');return}
-    return dl.save({filename:'Dhuna-UNAM_'+stamp()+'.xlsx',data:blob}).then(
-      function(){toast(usedPlain?'Excel exportado sem o modelo (formatação simples)':'Excel exportado')},
-      function(err){if(err&&err.code==='declined')return;toast('Não foi possível salvar o arquivo.')});
-  }).catch(function(){toast('Não foi possível gerar o arquivo Excel.')});
+  make.then(function(blob){
+    var filename='Dhuna-UNAM_'+stamp()+'.xlsx';
+    if(dlP){
+      return Promise.resolve(dlP).then(function(dl){
+        if(dl&&typeof dl.save==='function')return dl.save({filename:filename,data:blob});
+        browserDownload(blob,filename);
+      }).then(function(){toast(usedPlain?'Excel exportado sem o modelo (formatação simples)':'Excel exportado')});
+    }
+    browserDownload(blob,filename);
+    toast(usedPlain?'Excel exportado sem o modelo (formatação simples)':'Excel exportado');
+  }).catch(function(){toast('Não foi possível gerar ou salvar o arquivo Excel.')});
+}
+function browserDownload(blob,filename){
+  var url=URL.createObjectURL(blob),a=document.createElement('a');
+  a.href=url;a.download=filename;a.style.display='none';document.body.appendChild(a);
+  a.click();a.remove();setTimeout(function(){URL.revokeObjectURL(url)},1500);
 }
 function openTemplateDialog(){
   var dlg=document.getElementById('dlg');dlg.textContent='';
