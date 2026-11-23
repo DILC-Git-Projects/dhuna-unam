@@ -1,10 +1,10 @@
 <!DOCTYPE html>
 <!--
-  ETAPA 3
   Planejamento do doutorado sanduíche na UNAM (Dhuna).
-  Versão do app: 1.0 (21/11/2026). Versão dos dados salvos (state.v): 5.
+  Versão do app: 1.1 (23/11/2026). Versão dos dados salvos (state.v): 5.
   Histórico de mudanças: registre aqui cada alteração, com data e número da versão.
   1.0 (21/11/2026): versão inicial completa (etapas, Kanban, carteira, exportar e importar Excel).
+  1.1 (23/11/2026): carteira integrada ao Supabase (recorrências, lançamentos avulsos, cotações, poupança, estadia e depósitos).
 -->
 <html lang="pt-BR">
 <head>
@@ -549,6 +549,120 @@ function etapaLocal(codigo){var n=parseInt(String(codigo||'').replace(/^E/i,''),
 function moduloLocal(m){return ({AP:'udesc',VD:'mex',PF:'fin',PS:'pes'})[m]||'udesc'}
 function moduloDb(cat){return ({udesc:'AP',mex:'VD',fin:'PF',pes:'PS'})[cat]||'AP'}
 function erroDb(r){if(r&&r.error)throw r.error;return r?r.data:null}
+/* ---------- Supabase: carteira financeira (Etapa 4) ---------- */
+var financeReady=false;
+var financeConfig={poupanca:null,estadia:null};
+function monthKeyFromDate(d){return d?String(d).slice(0,7):''}
+function firstDayOfMonth(k){return k+'-01'}
+function lastMonthKey(depart,months){var d=pd(depart);if(!d)return monthKeyFromDate(todayStr());d.setMonth(d.getMonth()+Math.max(0,months-1));return d.getFullYear()+'-'+pad2(d.getMonth()+1)}
+async function carregarCarteiraRemota(){
+ var rq=await supa.from('recorrencias_financeiras').select('id,tipo,descricao,categoria,valor_previsto,moeda,periodicidade,data_inicio,data_fim,ativa').eq('projeto_id',PROJETO_ID);
+ var recs=erroDb(rq)||[];
+ var lq=await supa.from('lancamentos_financeiros').select('id,recorrencia_id,tipo,descricao,categoria,valor,moeda,data_vencimento,data_realizacao,competencia,status,observacoes,criado_por').eq('projeto_id',PROJETO_ID);
+ var lancs=erroDb(lq)||[];
+ var cq=await supa.from('cotacoes_moedas').select('id,moeda,data_cotacao,valor_em_brl').eq('projeto_id',PROJETO_ID).order('data_cotacao',{ascending:false});
+ var quotes=erroDb(cq)||[];
+ var pq=await supa.from('configuracoes_poupanca').select('id,inicio_poupanca,valor_inicial,outras_fontes,moeda,modo_meta,valor_meta_manual').eq('projeto_id',PROJETO_ID).limit(1);
+ var pconf=(erroDb(pq)||[])[0]||null;
+ var sq=await supa.from('configuracoes_estadia').select('id,data_partida,meses_estadia').eq('projeto_id',PROJETO_ID).limit(1);
+ var sconf=(erroDb(sq)||[])[0]||null;
+ var dq=await supa.from('depositos_poupanca').select('id,data_deposito,valor,moeda,observacoes,criado_por').eq('projeto_id',PROJETO_ID).order('data_deposito');
+ var deposits=erroDb(dq)||[];
+ financeConfig={poupanca:pconf,estadia:sconf};
+ var launchByRec={};lancs.forEach(function(x){if(x.recorrencia_id)(launchByRec[x.recorrencia_id]||(launchByRec[x.recorrencia_id]=[])).push(x)});
+ var items=[],income=[];
+ recs.filter(function(r){return r.ativa!==false}).forEach(function(r){
+  var ls=launchByRec[r.id]||[],note=(ls.find(function(x){return !!x.observacoes})||{}).observacoes||'';
+  var it={id:r.id,dbKind:'recurrence',name:r.descricao,type:r.periodicidade==='mensal'?'mensal':'unico',amount:+r.valor_previsto||0,cur:r.moeda,notes:note,category:r.categoria||null};
+  (r.tipo==='receita'?income:items).push(it);
+ });
+ lancs.filter(function(x){return !x.recorrencia_id&&x.status!=='cancelado'}).forEach(function(x){
+  var it={id:x.id,dbKind:'single',name:x.descricao,type:'unico',amount:+x.valor||0,cur:x.moeda,notes:x.observacoes||'',category:x.categoria||null};
+  (x.tipo==='receita'?income:items).push(it);
+ });
+ var rateRow=quotes.find(function(x){return x.moeda==='MXN'}),usdRow=quotes.find(function(x){return x.moeda==='USD'});
+ var history=quotes.filter(function(x){return x.moeda==='MXN'||x.moeda==='USD'}).map(function(x){return {date:x.data_cotacao,cur:x.moeda,rate:+x.valor_em_brl}});
+ var depMap={};deposits.forEach(function(x){var k=monthKeyFromDate(x.data_deposito);if(k)depMap[k]=(depMap[k]||0)+(+x.valor||0)});
+ var start=pconf&&pconf.inicio_poupanca?String(pconf.inicio_poupanca).slice(0,7):'2026-11';
+ state.depart=sconf&&sconf.data_partida||state.depart||'2027-04-01';
+ state.wallet={
+  rate:rateRow?+rateRow.valor_em_brl:0.2957,rateDate:rateRow?rateRow.data_cotacao:'',
+  usd:usdRow?+usdRow.valor_em_brl:5.795,usdDate:usdRow?usdRow.data_cotacao:'',history:history,
+  months:sconf?+sconf.meses_estadia:6,items:items,income:income,
+  goal:{start:start,saved0:pconf?+pconf.valor_inicial||0:0,other:pconf?+pconf.outras_fontes||0:0,mode:pconf?pconf.modo_meta:'calculada',manual:pconf&&pconf.valor_meta_manual!=null?+pconf.valor_meta_manual:0,moeda:pconf?pconf.moeda:'BRL'},
+  deposits:depMap
+ };
+ financeReady=true;
+}
+async function persistFinanceItem(it,isNew,kind){
+ var isIncome=kind==='income',tipo=isIncome?'receita':'despesa',user=(await supa.auth.getUser()).data.user;
+ if(isNew){
+  if(it.type==='mensal'){
+   var start=state.depart.slice(0,7)+'-01',end=lastMonthKey(state.depart,wal().months)+'-01';
+   var rr=await supa.from('recorrencias_financeiras').insert({projeto_id:PROJETO_ID,tipo:tipo,descricao:it.name,categoria:it.category||null,valor_previsto:it.amount,moeda:it.cur,periodicidade:'mensal',data_inicio:start,data_fim:end,ativa:true}).select('id').single();
+   var rec=erroDb(rr);it.id=rec.id;it.dbKind='recurrence';
+   var months=[];var d=pd(start.slice(0,10));for(var i=0;i<wal().months;i++){var k=d.getFullYear()+'-'+pad2(d.getMonth()+1);months.push({projeto_id:PROJETO_ID,recorrencia_id:rec.id,tipo:tipo,descricao:it.name,categoria:it.category||null,valor:it.amount,moeda:it.cur,competencia:firstDayOfMonth(k),status:'previsto',observacoes:it.notes||null,criado_por:user?user.id:null});d.setMonth(d.getMonth()+1)}
+   try{var li=await supa.from('lancamentos_financeiros').insert(months);erroDb(li)}catch(err){await supa.from('recorrencias_financeiras').update({ativa:false}).eq('id',rec.id);throw err;}
+  }else{
+   var one=await supa.from('lancamentos_financeiros').insert({projeto_id:PROJETO_ID,recorrencia_id:null,tipo:tipo,descricao:it.name,categoria:it.category||null,valor:it.amount,moeda:it.cur,status:'previsto',observacoes:it.notes||null,criado_por:user?user.id:null}).select('id').single();
+   it.id=erroDb(one).id;it.dbKind='single';
+  }
+ }else if(it.dbKind==='recurrence'){
+  var up=await supa.from('recorrencias_financeiras').update({tipo:tipo,descricao:it.name,categoria:it.category||null,valor_previsto:it.amount,moeda:it.cur,periodicidade:'mensal'}).eq('projeto_id',PROJETO_ID).eq('id',it.id);erroDb(up);
+  var ul=await supa.from('lancamentos_financeiros').update({tipo:tipo,descricao:it.name,categoria:it.category||null,valor:it.amount,moeda:it.cur}).eq('projeto_id',PROJETO_ID).eq('recorrencia_id',it.id).eq('status','previsto');erroDb(ul);
+  var un=await supa.from('lancamentos_financeiros').update({observacoes:it.notes||null}).eq('projeto_id',PROJETO_ID).eq('recorrencia_id',it.id);erroDb(un);
+ }else{
+  var us=await supa.from('lancamentos_financeiros').update({tipo:tipo,descricao:it.name,categoria:it.category||null,valor:it.amount,moeda:it.cur,observacoes:it.notes||null}).eq('projeto_id',PROJETO_ID).eq('id',it.id);erroDb(us);
+ }
+}
+async function excluirFinanceiro(it){
+ if(it.dbKind==='recurrence'){
+  var r=await supa.from('recorrencias_financeiras').update({ativa:false}).eq('projeto_id',PROJETO_ID).eq('id',it.id);erroDb(r);
+ }else{var d=await supa.from('lancamentos_financeiros').delete().eq('projeto_id',PROJETO_ID).eq('id',it.id);erroDb(d)}
+}
+async function salvarCotacao(cur,value,date){
+ var q=await supa.from('cotacoes_moedas').select('id').eq('projeto_id',PROJETO_ID).eq('moeda',cur).eq('data_cotacao',date).limit(1);
+ var found=(erroDb(q)||[])[0],payload={projeto_id:PROJETO_ID,moeda:cur,data_cotacao:date,valor_em_brl:value};
+ if(found){var u=await supa.from('cotacoes_moedas').update({valor_em_brl:value}).eq('id',found.id);erroDb(u)}
+ else{var i=await supa.from('cotacoes_moedas').insert(payload);erroDb(i)}
+}
+async function salvarEstadia(){
+ var payload={data_partida:state.depart,meses_estadia:wal().months};
+ var old=financeConfig.estadia;
+ if(old){var r=await supa.from('configuracoes_estadia').update(payload).eq('projeto_id',PROJETO_ID).eq('id',old.id);erroDb(r)}
+ else{var i=await supa.from('configuracoes_estadia').insert(Object.assign({projeto_id:PROJETO_ID},payload)).select('id').single();financeConfig.estadia=Object.assign({id:erroDb(i).id},payload)}
+ if(financeConfig.estadia)Object.assign(financeConfig.estadia,payload);
+ /* Ajusta apenas parcelas previstas; parcelas já pagas/recebidas são preservadas. */
+ var rq=await supa.from('recorrencias_financeiras').select('id,tipo,descricao,categoria,valor_previsto,moeda,ativa').eq('projeto_id',PROJETO_ID).eq('ativa',true);
+ var recs=erroDb(rq)||[],start=state.depart.slice(0,7)+'-01',end=lastMonthKey(state.depart,wal().months)+'-01',desired=[];
+ var d=pd(start);for(var n=0;n<wal().months;n++){desired.push(firstDayOfMonth(d.getFullYear()+'-'+pad2(d.getMonth()+1)));d.setMonth(d.getMonth()+1)}
+ var user=(await supa.auth.getUser()).data.user;
+ for(var j=0;j<recs.length;j++){
+  var rec=recs[j],ur=await supa.from('recorrencias_financeiras').update({data_inicio:start,data_fim:end}).eq('id',rec.id);erroDb(ur);
+  var lr=await supa.from('lancamentos_financeiros').select('id,competencia,status').eq('projeto_id',PROJETO_ID).eq('recorrencia_id',rec.id);var existing=erroDb(lr)||[],have={};
+  existing.forEach(function(x){var k=x.competencia?String(x.competencia).slice(0,10):'';if(k)have[k]=x;if(x.status==='previsto'&&k&&desired.indexOf(k)<0){/* cancelamento sem apagar histórico */}});
+  for(var z=0;z<existing.length;z++){var ex=existing[z],ek=ex.competencia?String(ex.competencia).slice(0,10):'';if(ex.status==='previsto'&&ek&&desired.indexOf(ek)<0){var cx=await supa.from('lancamentos_financeiros').update({status:'cancelado'}).eq('id',ex.id);erroDb(cx)}}
+  for(var z2=0;z2<desired.length;z2++){var dk=desired[z2],prior=have[dk];if(prior&&prior.status==='cancelado'){var restore=await supa.from('lancamentos_financeiros').update({status:'previsto',tipo:rec.tipo,descricao:rec.descricao,categoria:rec.categoria||null,valor:rec.valor_previsto,moeda:rec.moeda}).eq('id',prior.id);erroDb(restore)}}
+  var missing=desired.filter(function(k){return !have[k]}).map(function(k){return {projeto_id:PROJETO_ID,recorrencia_id:rec.id,tipo:rec.tipo,descricao:rec.descricao,categoria:rec.categoria||null,valor:rec.valor_previsto,moeda:rec.moeda,competencia:k,status:'previsto',criado_por:user?user.id:null}});
+  if(missing.length){var mi=await supa.from('lancamentos_financeiros').insert(missing);erroDb(mi)}
+ }
+}
+async function salvarConfigPoupanca(){
+ var g=wal().goal,payload={inicio_poupanca:firstDayOfMonth(g.start),valor_inicial:g.saved0||0,outras_fontes:g.other||0,moeda:g.moeda||'BRL',modo_meta:g.mode||'calculada',valor_meta_manual:g.manual||null};
+ var old=financeConfig.poupanca;
+ if(old){var r=await supa.from('configuracoes_poupanca').update(payload).eq('projeto_id',PROJETO_ID).eq('id',old.id);erroDb(r)}
+ else{var i=await supa.from('configuracoes_poupanca').insert(Object.assign({projeto_id:PROJETO_ID},payload)).select('id').single();financeConfig.poupanca=Object.assign({id:erroDb(i).id},payload)}
+ if(financeConfig.poupanca)Object.assign(financeConfig.poupanca,payload);
+}
+async function salvarDepositoMes(month,value){
+ var date=firstDayOfMonth(month),q=await supa.from('depositos_poupanca').select('id').eq('projeto_id',PROJETO_ID).gte('data_deposito',date).lt('data_deposito',monthEndDate(month));
+ var rows=erroDb(q)||[];if(rows.length>1)throw new Error('Há mais de um depósito registrado neste mês. Para preservar o histórico, precisamos conciliá-los antes de editar o total mensal.');
+ if(rows.length&&value>0){var u=await supa.from('depositos_poupanca').update({valor:value,moeda:'BRL'}).eq('id',rows[0].id);erroDb(u)}
+ else if(rows.length&&!value){var d=await supa.from('depositos_poupanca').delete().eq('id',rows[0].id);erroDb(d)}
+ else if(!rows.length&&value>0){var user=(await supa.auth.getUser()).data.user;var i=await supa.from('depositos_poupanca').insert({projeto_id:PROJETO_ID,data_deposito:date,valor:value,moeda:'BRL',criado_por:user?user.id:null});erroDb(i)}
+}
+function monthEndDate(k){var p=k.split('-'),d=new Date(+p[0],+p[1],1);return d.getFullYear()+'-'+pad2(d.getMonth()+1)+'-'+pad2(d.getDate())}
+
 async function carregarRemoto(){
  if(!supa)throw new Error('Cliente Supabase indisponível.');
  var a=await supa.from('etapas').select('id,codigo,nome,periodo_descricao,ordem,ativa').eq('projeto_id',PROJETO_ID).eq('ativa',true).order('ordem');
@@ -562,6 +676,7 @@ async function carregarRemoto(){
  var linkById={};links.forEach(function(l){linkById[l.id]=l});var byTask={};assocs.forEach(function(x){(byTask[x.atividade_id]||(byTask[x.atividade_id]=[])).push(x.link_id)});
  state.tasks=rows.map(function(r){return {id:r.id,dbId:r.id,phase:etapaLocalPorDb[r.etapa_id]||'f1',cat:moduloLocal(r.modulo),code:r.codigo,title:r.titulo||'',due:r.data_prazo||'',desc:r.descricao||'',notes:r.anotacoes||'',status:r.status||'todo',links:(byTask[r.id]||[]).map(function(id){var l=linkById[id];return l?{id:l.id,label:l.titulo,url:l.url,category_id:l.categoria_id}:null}).filter(Boolean)}});
  state.counters=state.counters||{};state.tasks.forEach(function(t){var m=/^[A-Z]{2}-(\d+)$/.exec(t.code||'');if(m)state.counters[CODES[t.cat]]=Math.max(state.counters[CODES[t.cat]]||0,+m[1]);});
+ await carregarCarteiraRemota();
  remoteReady=true;save();render();
 }
 async function persistLinks(task,oldLinks){
@@ -884,7 +999,8 @@ function stayMonths(){
 }
 function goalData(){
   var w=wal(),g=w.goal,tot=totals(),inc=incomeTotals(),ms=goalMonths();
-  var needed=Math.max(0,tot.total-inc.total-(g.other||0));
+  var calculated=Math.max(0,tot.total-inc.total-(g.other||0));
+  var needed=g.mode==='manual'?Math.max(0,+g.manual||0):calculated;
   var base=Math.max(0,needed-(g.saved0||0));
   var monthly=ms.length?base/ms.length:0;
   var rows=[],cumM=g.saved0||0,cumR=g.saved0||0;
@@ -932,19 +1048,19 @@ function rateCard(){
     w.history.sort(function(a,b){return b.date.localeCompare(a.date)});
     w.history=w.history.slice(0,20);
   }
-  function setRate(cur,inp,dinp){
+  async function setRate(cur,inp,dinp){
     var v=parseFloat(inp.value),d=dinp.value||todayStr();
     if(!(v>0)){toast('Informe uma cotação maior que zero.');render();return}
-    if(cur==='USD'){w.usd=v;w.usdDate=d}else{w.rate=v;w.rateDate=d}
-    rec(cur,v,d);save();render();
+    try{if(remoteReady)await salvarCotacao(cur,v,d);if(cur==='USD'){w.usd=v;w.usdDate=d}else{w.rate=v;w.rateDate=d}
+    rec(cur,v,d);save();render();}catch(err){toast('Não foi possível salvar a cotação: '+(err.message||err));render()}
   }
   uIn.addEventListener('change',function(){setRate('USD',uIn,uDate)});
   uDate.addEventListener('change',function(){setRate('USD',uIn,uDate)});
   rIn.addEventListener('change',function(){setRate('MXN',rIn,rDate)});
   rDate.addEventListener('change',function(){setRate('MXN',rIn,rDate)});
-  mIn.addEventListener('change',function(){
+  mIn.addEventListener('change',async function(){
     var v=Math.round(parseFloat(mIn.value));
-    if(v>=1&&v<=36){w.months=v;save();render()}else{toast('Informe de 1 a 36 meses.');render()}
+    if(v>=1&&v<=36){var old=w.months;w.months=v;try{if(remoteReady)await salvarEstadia();save();render()}catch(err){w.months=old;toast('Não foi possível salvar a estadia: '+(err.message||err));render()}}else{toast('Informe de 1 a 36 meses.');render()}
   });
   function pill(a,b){return h('span',{class:'rp'},h('b',{},a),'=',b)}
   var hist=(w.history||[]).slice(0,6).map(function(x){
@@ -1016,15 +1132,22 @@ function goalSection(gm){
   var start=h('input',{type:'month',value:g.start||''});
   var saved0=h('input',{type:'number',min:'0',step:'any',value:String(g.saved0||0)});
   var other=h('input',{type:'number',min:'0',step:'any',value:String(g.other||0)});
-  start.addEventListener('change',function(){if(start.value){g.start=start.value;save();render()}});
-  saved0.addEventListener('change',function(){g.saved0=Math.max(0,parseFloat(saved0.value)||0);save();render()});
-  other.addEventListener('change',function(){g.other=Math.max(0,parseFloat(other.value)||0);save();render()});
+  var mode=h('select',{});mode.append(h('option',{value:'calculada'},'Calculada automaticamente'),h('option',{value:'manual'},'Definida manualmente'));mode.value=g.mode==='manual'?'manual':'calculada';
+  var manual=h('input',{type:'number',min:'0',step:'any',value:String(g.manual||0)});manual.disabled=mode.value!=='manual';
+  async function saveGoalField(field,value){var old=g[field];g[field]=value;try{if(remoteReady)await salvarConfigPoupanca();save();render()}catch(err){g[field]=old;toast('Não foi possível salvar a configuração: '+(err.message||err));render()}}
+  start.addEventListener('change',function(){if(start.value)saveGoalField('start',start.value)});
+  saved0.addEventListener('change',function(){saveGoalField('saved0',Math.max(0,parseFloat(saved0.value)||0))});
+  other.addEventListener('change',function(){saveGoalField('other',Math.max(0,parseFloat(other.value)||0))});
+  mode.addEventListener('change',function(){manual.disabled=mode.value!=='manual';saveGoalField('mode',mode.value)});
+  manual.addEventListener('change',function(){saveGoalField('manual',Math.max(0,parseFloat(manual.value)||0))});
   sect.append(h('div',{class:'card2',style:'margin-bottom:14px'},
     h('div',{class:'fields'},
       h('label',{},'Começar a poupar em',start),
+      h('label',{},'Modo da meta',mode),
+      h('label',{},'Meta manual (R$)',manual),
       h('label',{},'Já guardado hoje (R$)',saved0),
       h('label',{},'Outras fontes, além da bolsa (R$, total)',other)),
-    h('p',{class:'note',style:'margin:12px 0 0'},'Meta total = custos planejados − receitas na estadia − outras fontes. O que falta é dividido pelos meses entre o início da poupança e a partida. Os valores guardados são informados em reais.')));
+    h('p',{class:'note',style:'margin:12px 0 0'},g.mode==='manual'?'A meta manual é usada como objetivo total. O que falta é dividido pelos meses entre o início da poupança e a partida.':'Meta total = custos planejados − receitas na estadia − outras fontes. O que falta é dividido pelos meses entre o início da poupança e a partida. Os valores guardados são informados em reais.')));
   if(!gm.n){
     sect.append(h('div',{class:'empty'},'O mês de início da poupança precisa ser anterior à data de partida ('+fmt(state.depart,true)+').'));
   }else{
@@ -1061,10 +1184,10 @@ function goalSection(gm){
   gm.rows.forEach(function(r){
     sumM+=r.meta;sumR+=r.real;
     var inp=h('input',{type:'number',min:'0',step:'any',class:'mv-in',value:r.real?String(r.real):'',placeholder:'0','aria-label':'Guardado em '+mLabel(r.m)+' (R$)'});
-    inp.addEventListener('change',function(){
-      var v=Math.max(0,parseFloat(inp.value)||0);
-      if(v)w.deposits[r.m]=v;else delete w.deposits[r.m];
-      save();render();
+    inp.addEventListener('change',async function(){
+      var v=Math.max(0,parseFloat(inp.value)||0),old=w.deposits[r.m]||0;
+      try{if(remoteReady)await salvarDepositoMes(r.m,v);if(v)w.deposits[r.m]=v;else delete w.deposits[r.m];save();render()}
+      catch(err){w.deposits[r.m]=old;toast('Não foi possível salvar o depósito: '+(err.message||err));render()}
     });
     var past=r.m<nowKey,diff=r.real-r.meta;if(past){pastM+=r.meta;pastR+=r.real}
     tb.append(h('tr',{},
@@ -1162,22 +1285,23 @@ function editItem(id,kind){
     var name=f.querySelector('#iName').value.trim();
     if(!name){f.querySelector('#iName').focus();return}
     var amt=parseFloat(f.querySelector('#iAmt').value);
+    var previous=Object.assign({},it);
     it.name=name;it.type=f.querySelector('#iType').value;it.amount=amt>=0?amt:0;
     it.cur=f.querySelector('#iCur').value;it.notes=f.querySelector('#iNotes').value.trim();
-    if(isNew)w[key].push(it);
-    save();dlg.close();render();toast(isNew?(inc?'Receita adicionada':'Custo adicionado'):(inc?'Receita salva':'Custo salvo'));
+    try{if(remoteReady)await persistFinanceItem(it,isNew,kind);if(isNew)w[key].push(it);save();dlg.close();render();toast(isNew?(inc?'Receita adicionada':'Custo adicionado'):(inc?'Receita salva':'Custo salvo'));}
+    catch(err){Object.assign(it,previous);toast('Não foi possível salvar no Supabase: '+(err.message||err));}
   }},
     h('h2',{},isNew?(inc?'Nova receita':'Novo custo'):(inc?'Editar receita':'Editar custo')),
     h('label',{},'Nome',h('input',{id:'iName',value:it.name,required:true,maxlength:'120',placeholder:inc?'Bolsa UDESC':''})),
     h('div',{class:'g2'},
-      h('label',{},'Tipo',h('select',{id:'iType'},opt('unico',inc?'Receita única':'Custo único',it.type),opt('mensal',inc?'Receita mensal, durante a estadia':'Custo mensal, durante a estadia',it.type))),
+      h('label',{},'Tipo',h('select',{id:'iType',disabled:!isNew},opt('unico',inc?'Receita única':'Custo único',it.type),opt('mensal',inc?'Receita mensal, durante a estadia':'Custo mensal, durante a estadia',it.type))),
       h('label',{},'Moeda do valor',h('select',{id:'iCur'},opt('BRL',CURS.BRL.n,it.cur),opt('MXN',CURS.MXN.n,it.cur),opt('USD',CURS.USD.n,it.cur)))),
     h('label',{},inc?'Valor (por mês, se for receita mensal)':'Valor (por mês, se for custo mensal)',h('input',{id:'iAmt',type:'number',min:'0',step:'any',value:String(it.amount),required:true})),
     h('label',{},'Observações',h('textarea',{id:'iNotes',rows:'2'},it.notes)),
     h('p',{id:'iPrev',class:'codeinfo'}),
     h('div',{class:'dlg-actions'},
       isNew?h('span'):h('button',{class:'btn danger',type:'button',onclick:function(){
-        if(confirm(inc?'Excluir esta receita?':'Excluir este custo?')){w[key]=w[key].filter(function(x){return x.id!==it.id});save();dlg.close();render();toast(inc?'Receita excluída':'Custo excluído')}
+        if(confirm(inc?'Excluir esta receita?':'Excluir este custo?')){(async function(){try{if(remoteReady)await excluirFinanceiro(it);w[key]=w[key].filter(function(x){return x.id!==it.id});save();dlg.close();render();toast(inc?'Receita excluída':'Custo excluído')}catch(err){toast('Não foi possível excluir: '+(err.message||err))}})()}
       }},'Excluir'),
       h('span',{style:'display:flex;gap:8px'},
         h('button',{class:'btn ghost',type:'button',onclick:function(){dlg.close()}},'Cancelar'),
@@ -1210,8 +1334,8 @@ document.getElementById('btnNew').addEventListener('click',function(){editTask(n
 var dd=document.getElementById('dlgDate');
 document.getElementById('btnDate').addEventListener('click',function(){document.getElementById('inDepart').value=state.depart||'';dd.showModal()});
 document.getElementById('dateCancel').addEventListener('click',function(){dd.close()});
-document.getElementById('dateSave').addEventListener('click',function(){
-  state.depart=document.getElementById('inDepart').value||state.depart;save();dd.close();render();toast('Data de partida salva');
+document.getElementById('dateSave').addEventListener('click',async function(){
+  var old=state.depart;state.depart=document.getElementById('inDepart').value||state.depart;try{if(remoteReady)await salvarEstadia();save();dd.close();render();toast('Data de partida salva')}catch(err){state.depart=old;toast('Não foi possível salvar a data: '+(err.message||err))}
 });
 /* ---------- exportar / importar Excel ---------- */
 var XLSX_MIME='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
@@ -1588,6 +1712,7 @@ function stateFromWorkbook(wb){
 document.getElementById('btnExport').addEventListener('click',exportXlsx);
 document.getElementById('btnImport').addEventListener('click',function(){document.getElementById('fileImport').click()});
 document.getElementById('fileImport').addEventListener('change',function(e){
+  if(remoteReady){toast('A importação de Excel/JSON ainda não está habilitada no modo compartilhado. Use a exportação para gerar uma cópia dos dados.');e.target.value='';return;}
   var f=e.target.files[0];if(!f)return;
   var isJson=/\.json$/i.test(f.name),r=new FileReader();
   r.onload=function(){
