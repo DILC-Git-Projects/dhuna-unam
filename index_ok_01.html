@@ -1580,7 +1580,6 @@ function fillTemplate(sheets){
 }
 function exportXlsx(){
   var dlP=getDownloads();
-  if(!dlP){toast('Download indisponível aqui. Abra o app pelo claude.ai.');return}
   var sheets;
   try{sheets=buildSheets()}catch(e){toast('Não foi possível montar o arquivo Excel.');return}
   var usedPlain=false,make;
@@ -1591,13 +1590,22 @@ function exportXlsx(){
     });
   }else if(xlsxReady()){usedPlain=true;make=Promise.resolve(plainBlob(sheets))}
   else{toast('A biblioteca de Excel não carregou. Recarregue a página.');return}
-  Promise.all([make,Promise.resolve(dlP)]).then(function(r){
-    var blob=r[0],dl=r[1];
-    if(!dl){toast('Download indisponível aqui. Abra o app pelo claude.ai.');return}
-    return dl.save({filename:'Dhuna-UNAM_'+stamp()+'.xlsx',data:blob}).then(
-      function(){toast(usedPlain?'Excel exportado sem o modelo (formatação simples)':'Excel exportado')},
-      function(err){if(err&&err.code==='declined')return;toast('Não foi possível salvar o arquivo.')});
-  }).catch(function(){toast('Não foi possível gerar o arquivo Excel.')});
+  make.then(function(blob){
+    var filename='Dhuna-UNAM_'+stamp()+'.xlsx';
+    if(dlP){
+      return Promise.resolve(dlP).then(function(dl){
+        if(dl&&typeof dl.save==='function')return dl.save({filename:filename,data:blob});
+        browserDownload(blob,filename);
+      }).then(function(){toast(usedPlain?'Excel exportado sem o modelo (formatação simples)':'Excel exportado')});
+    }
+    browserDownload(blob,filename);
+    toast(usedPlain?'Excel exportado sem o modelo (formatação simples)':'Excel exportado');
+  }).catch(function(){toast('Não foi possível gerar ou salvar o arquivo Excel.')});
+}
+function browserDownload(blob,filename){
+  var url=URL.createObjectURL(blob),a=document.createElement('a');
+  a.href=url;a.download=filename;a.style.display='none';document.body.appendChild(a);
+  a.click();a.remove();setTimeout(function(){URL.revokeObjectURL(url)},1500);
 }
 function openTemplateDialog(){
   var dlg=document.getElementById('dlg');dlg.textContent='';

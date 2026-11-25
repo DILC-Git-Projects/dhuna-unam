@@ -241,48 +241,143 @@ dialog::backdrop{background:rgba(20,12,34,.55)}
 .chart-wrap svg{min-width:640px}
 .tiles{grid-template-columns:repeat(auto-fit,minmax(190px,1fr))}
 @media (prefers-reduced-motion:reduce){*{transition:none!important}}
+
+
+/* --- Layout lateral DHUNA-UNAM --- */
+:root{--navy:#17243a;--navy2:#20324d;--navaccent:#2c65c7;--surface2:#f9fbff}
+body{background:#f3f6fb;color:#17233b}
+.app-shell{min-height:100vh;display:flex}
+.sidebar{width:238px;flex:0 0 238px;background:linear-gradient(180deg,#162238,#1d2b42);color:#eef4ff;display:flex;flex-direction:column;min-height:100vh;padding:24px 14px 18px;position:sticky;top:0;height:100vh}
+.side-brand{text-align:center;padding:8px 6px 32px}
+.brand-mark{width:66px;height:66px;border-radius:18px;background:linear-gradient(145deg,#e9b34c,#b77917);color:#24344d;display:grid;place-items:center;margin:0 auto 12px;font-size:34px;font-weight:800;box-shadow:0 7px 22px #0003}
+.brand-name{font-weight:800;letter-spacing:.05em;font-size:16px;color:#f8e7b4}
+.brand-sub{font-size:12px;color:#c8d4e5;margin-top:3px}
+.side-nav-label{font-size:10px;letter-spacing:.13em;color:#a7b5c9;padding:0 12px 10px;font-weight:700}
+.side-nav .tabs{display:flex;flex-direction:column;gap:5px}
+.side-nav .tab{border:0;border-radius:10px;text-align:left;padding:12px 13px;color:#dce6f5;display:flex;align-items:center;gap:12px;width:100%;border-bottom:0;font-weight:500}
+.side-nav .tab[aria-selected="true"]{background:linear-gradient(90deg,#2864c3,#3474d8);color:#fff;box-shadow:0 6px 16px #081a3a55}
+.nav-ico{font-size:19px;display:inline-grid;place-items:center;width:23px;opacity:.95}
+.side-trip{margin-top:auto;border:1px solid #435776;background:#20324b;border-radius:15px;padding:18px 12px;text-align:center;display:flex;flex-direction:column;gap:4px;font-size:12px;color:#c9d6e8}
+.side-trip strong{color:#f1f6ff;font-size:14px;margin-top:4px}.trip-icon{font-size:27px;color:#8dc0ff}
+.side-foot{text-align:center;color:#8fa0b8;font-size:10px;margin-top:16px}
+.main-shell{flex:1;min-width:0}
+.hero{background:transparent;color:var(--ink);padding:26px 28px 16px;border-bottom:1px solid #e1e7f0}
+.hero .wrap{max-width:1440px;margin:0}
+.hero h1{font-family:var(--sans);font-weight:750;font-size:30px;letter-spacing:-.03em;color:#172b50}
+.hero p{color:#66758c}
+.hero .count{color:#1b4f9e}
+.hero-row{align-items:center;gap:18px}
+.hero-actions{gap:7px}
+.hero .btn{background:#fff;border-color:#d9e2ee;color:#30415b}
+.hero .btn.primary{background:#2463c3;color:#fff;border-color:#2463c3}
+.meters{margin-top:18px;gap:10px;grid-template-columns:repeat(auto-fit,minmax(130px,1fr))}
+.meter{background:#fff;border:1px solid #e0e7f1;border-radius:12px;padding:10px 12px;box-shadow:0 2px 8px #172b5008}
+.meter .top{color:#66758c}.meter .top b{color:#172b50}
+.bar{background:#e9eef6}.bar>i{background:#2463c3}
+.meter[data-cat="udesc"] .bar>i{background:#8a68c5}.meter[data-cat="mex"] .bar>i{background:#d88a39}.meter[data-cat="fin"] .bar>i{background:#19946c}.meter[data-cat="pes"] .bar>i{background:#4b83d3}
+.bar-nav{position:static;background:transparent;border:0}
+.bar-nav .wrap{max-width:1440px;margin:0;padding:0 28px}
+.chips{padding:0 0 4px}
+main{padding:10px 28px 36px}
+main .wrap{max-width:1440px;margin:0}
+#view{min-width:0}
+.phase,.wsec,.card2,.tbl-wrap,.home-panel,.home-metric{border-radius:14px}
+@media(max-width:950px){.sidebar{width:205px;flex-basis:205px}.hero{padding-left:20px;padding-right:20px}main{padding-left:20px;padding-right:20px}.bar-nav .wrap{padding:0 20px}}
+@media(max-width:700px){
+ .app-shell{display:block}
+ .sidebar{position:static;width:auto;min-height:auto;height:auto;padding:10px 12px;display:block}
+ .side-brand{padding:2px 4px 9px;display:flex;align-items:center;justify-content:center;gap:8px;text-align:left}
+ .brand-mark{width:35px;height:35px;border-radius:10px;margin:0;font-size:18px}
+ .brand-name{font-size:13px}.brand-sub,.side-trip,.side-foot,.side-nav-label{display:none}
+ .side-nav .tabs{flex-direction:row;overflow-x:auto;gap:4px}
+ .side-nav .tab{width:auto;flex:1;white-space:nowrap;padding:9px 10px;justify-content:center}
+ .nav-ico{width:auto;font-size:16px}
+ .hero{padding:18px 14px 12px}.hero h1{font-size:24px}
+ .hero-row{align-items:flex-start;flex-direction:column}
+ .hero-actions{width:100%;flex-wrap:wrap}
+ .hero-actions .btn{font-size:12px;padding:6px 9px}
+ .meters{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+ .bar-nav .wrap{padding:0 14px}main{padding:8px 14px 26px}
+}
+
+/* Indicador de cobertura financeira */
+.coverage{border:1px solid #cfe0fa;background:linear-gradient(135deg,#f7faff,#edf5ff);border-radius:17px;padding:22px 24px;margin:14px 0 20px;color:#152a50}
+.coverage-title{font-size:20px;font-weight:750;margin-bottom:18px}
+.coverage-grid{display:grid;grid-template-columns:190px 1.2fr 1.3fr minmax(200px,.9fr);align-items:center;gap:22px}
+.coverage-ring-wrap{display:flex;justify-content:center}
+.coverage-ring{width:158px;height:158px;border-radius:50%;background:conic-gradient(#16884f var(--progress),#d7e3f5 0);display:grid;place-items:center}
+.coverage-ring-inner{width:130px;height:130px;border-radius:50%;background:#f7faff;display:flex;flex-direction:column;align-items:center;justify-content:center}
+.coverage-ring-inner strong{font-size:35px;color:#142743}.coverage-ring-inner span{font-size:13px;color:#60738e}
+.coverage-total{border-left:1px solid #b9cce8;padding-left:24px;display:flex;flex-direction:column;gap:7px}
+.coverage-label{font-size:15px;color:#344b6a}.coverage-amount{font-size:32px;color:#13854f;line-height:1.2}
+.coverage-total span:last-child{font-size:14px}
+.coverage-breakdown{border-left:1px solid #b9cce8;padding-left:22px;display:flex;flex-direction:column;gap:12px}
+.coverage-breakdown>div{display:flex;align-items:center;gap:8px;flex-wrap:wrap}.coverage-breakdown strong{margin-left:auto}
+.coverage-breakdown hr{border:0;border-top:1px solid #b9cce8;width:100%;margin:2px 0}
+.coverage-breakdown .coverage-sum{font-weight:700}.dot{width:10px;height:10px;border-radius:50%;display:inline-block}.savings-dot{background:#15945b}.income-dot{background:#347bd0}
+.coverage-gap{background:#dceafe;border-radius:14px;padding:18px;display:flex;flex-direction:column;gap:6px}
+.coverage-gap span{font-weight:700}.coverage-gap strong{font-size:28px;color:#2059b0}.coverage-gap small{color:#344b6a}
+@media(max-width:1050px){.coverage-grid{grid-template-columns:180px 1fr 1fr}.coverage-gap{grid-column:1/-1}}
+@media(max-width:650px){.coverage{padding:16px}.coverage-grid{grid-template-columns:1fr;gap:16px}.coverage-total,.coverage-breakdown{border-left:0;border-top:1px solid #b9cce8;padding:14px 0 0}.coverage-ring{width:140px;height:140px}.coverage-ring-inner{width:116px;height:116px}.coverage-amount{font-size:26px}.coverage-gap strong{font-size:24px}}
 </style>
 </head>
 <body>
-
-<header class="hero">
-  <div class="wrap">
-    <div class="hero-row">
-      <div>
-        <h1>Sanduíche na UNAM</h1>
-        <p id="countdown"></p>
-      </div>
-      <div class="hero-actions">
-        <button class="btn primary" id="btnNew">Nova atividade</button>
-        <button class="btn" id="btnDate">Data de partida</button>
-        <button class="btn" id="btnExport">Exportar Excel</button>
-        <button class="btn" id="btnImport">Importar Excel</button>
-        <button class="btn" id="btnTpl">Modelo do Excel</button>
-        <button class="btn" id="btnLogout" type="button" hidden>Sair</button>
-        <input type="file" id="fileTpl" accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" hidden>
-        <input type="file" id="fileImport" accept=".xlsx,.json,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/json" hidden>
-      </div>
+<div class="app-shell">
+  <aside class="sidebar" aria-label="Navegação principal">
+    <div class="side-brand">
+      <div class="brand-mark" aria-hidden="true">✦</div>
+      <div class="brand-name">DHUNA-UNAM</div>
+      <div class="brand-sub">Doutorado Sanduíche</div>
     </div>
-    <div class="meters" id="meters"></div>
-  </div>
-</header>
-
-<nav class="bar-nav" aria-label="Visões e filtros">
-  <div class="wrap">
-    <div class="tabs" role="tablist" id="tabs">
-      <button class="tab" role="tab" data-v="etapas">Etapas</button>
-      <button class="tab" role="tab" data-v="kanban">Kanban</button>
-      <button class="tab" role="tab" data-v="carteira">Carteira</button>
-      <button class="tab" role="tab" data-v="links">Links úteis</button>
+    <nav class="side-nav" aria-label="Seções">
+      <div class="side-nav-label">PLANEJAMENTO</div>
+      <div class="tabs" role="tablist" id="tabs">
+        <button class="tab" role="tab" data-v="etapas"><span class="nav-ico">⌂</span> Etapas</button>
+        <button class="tab" role="tab" data-v="kanban"><span class="nav-ico">▦</span> Kanban</button>
+        <button class="tab" role="tab" data-v="carteira"><span class="nav-ico">▣</span> Carteira</button>
+        <button class="tab" role="tab" data-v="links"><span class="nav-ico">↗</span> Links úteis</button>
+      </div>
+    </nav>
+    <div class="side-trip">
+      <div class="trip-icon">✈</div>
+      <strong>Rumo à UNAM</strong>
+      <span>Cidade do México</span>
+      <span>Abril 2027</span>
     </div>
-    <div class="chips" id="chips" aria-label="Filtrar por área"></div>
+    <div class="side-foot">Planejamento compartilhado</div>
+  </aside>
+  <div class="main-shell">
+    <header class="hero">
+      <div class="wrap">
+        <div class="hero-row">
+          <div>
+            <h1>Sanduíche na UNAM</h1>
+            <p id="countdown"></p>
+          </div>
+          <div class="hero-actions">
+            <button class="btn primary" id="btnNew">Nova atividade</button>
+            <button class="btn" id="btnDate">Data de partida</button>
+            <button class="btn" id="btnExport">Exportar Excel</button>
+            <button class="btn" id="btnImport">Importar Excel</button>
+            <button class="btn" id="btnTpl">Modelo do Excel</button>
+            <button class="btn" id="btnLogout" type="button" hidden>Sair</button>
+            <input type="file" id="fileTpl" accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" hidden>
+            <input type="file" id="fileImport" accept=".xlsx,.json,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/json" hidden>
+          </div>
+        </div>
+        <div class="meters" id="meters"></div>
+      </div>
+    </header>
+    <nav class="bar-nav" aria-label="Filtros">
+      <div class="wrap">
+        <div class="chips" id="chips" aria-label="Filtrar por área"></div>
+      </div>
+    </nav>
+    <main>
+      <div class="wrap" id="view"></div>
+    </main>
   </div>
-</nav>
-
-<main>
-  <div class="wrap" id="view"></div>
-</main>
-
+</div>
 <dialog id="dlg"></dialog>
 <dialog id="dlgDate">
   <div class="dlg">
@@ -1022,9 +1117,41 @@ function tile(label,brl,sub,o){
   return h('div',{class:'tile'+(o.hl?' hl':''),style:o.c?'--tc:var('+o.c+')':null},
     h('div',{class:'tl'},label),dual(brl,'big'),h('div',{class:'ts'},sub));
 }
+function coveragePanel(tot,inc,w){
+  var nowKey=new Date().getFullYear()+'-'+pad2(new Date().getMonth()+1);
+  var deposited=Object.keys(w.deposits||{}).filter(function(k){return k<=nowKey}).reduce(function(a,k){return a+(+w.deposits[k]||0)},0);
+  var saved=Math.max(0,(+w.goal.saved0||0)+deposited);
+  var available=saved+(+inc.total||0);
+  var cost=Math.max(0,+tot.total||0);
+  var pct=cost?Math.min(100,available/cost*100):100;
+  var missing=Math.max(0,cost-available),surplus=Math.max(0,available-cost);
+  var scholarship=(+inc.total||0);
+  return h('section',{class:'coverage'},
+    h('div',{class:'coverage-title'},'Seu progresso financeiro para a viagem'),
+    h('div',{class:'coverage-grid'},
+      h('div',{class:'coverage-ring-wrap'},
+        h('div',{class:'coverage-ring',style:'--progress:'+pct+'%'},
+          h('div',{class:'coverage-ring-inner'},
+            h('strong',{},Math.round(pct)+'%'),
+            h('span',{},'do custo total')))),
+      h('div',{class:'coverage-total'},
+        h('span',{class:'coverage-label'},'Você já tem previsto'),
+        h('strong',{class:'coverage-amount'},money(available,'BRL')),
+        h('span',{},'de '+money(cost,'BRL'))),
+      h('div',{class:'coverage-breakdown'},
+        h('div',{},h('span',{class:'dot savings-dot'}),'Poupança atual',h('strong',{},money(saved,'BRL'))),
+        h('div',{},h('span',{class:'dot income-dot'}),'Receitas previstas',h('strong',{},money(scholarship,'BRL'))),
+        h('hr'),
+        h('div',{class:'coverage-sum'},'Total disponível',h('strong',{},money(available,'BRL')))),
+      h('div',{class:'coverage-gap'},
+        h('span',{},missing?'Falta ainda:':'Custo coberto'),
+        h('strong',{},missing?money(missing,'BRL'):money(surplus,'BRL')),
+        h('small',{},missing?'para atingir o custo total estimado.':'Recursos acima do custo total estimado.'))));
+}
 function renderCarteira(root){
   var w=wal(),tot=totals(),inc=incomeTotals(),gm=goalData();
   root.append(h('p',{class:'note'},'Planeje o dinheiro da viagem. Todos os valores aparecem em reais (R$), pesos mexicanos (MX$) e dólares (US$), pelas cotações abaixo. Os custos iniciais são estimativas: ajuste cada um à sua realidade.'));
+  root.append(coveragePanel(tot,inc,w));
   root.append(h('div',{class:'tiles'},
     tile('Total planejado',tot.total,'únicos + mensais × '+w.months+' meses',{hl:true}),
     tile('Custos únicos',tot.one,'viagem, visto, instalação',{c:'--c-mex'}),
